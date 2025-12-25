@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>College Notes Organizer</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- JSZip library for creating downloadable ZIP files -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <!-- FileSaver library for downloading files -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:1rem;">
+                <div>
+                    <h1>📚 College Notes Organizer</h1>
+                    <p>Keep your notes organized and accessible - with Files Support</p>
+                </div>
+                <div style="display:flex; align-items:center; gap:0.5rem;">
+                    <button id="helpBtn" class="assistant-btn" title="Help Assistant">Assistant</button>
+                    <div id="authUserDisplay" style="min-width:140px;"></div>
+                    <button id="signInBtn" class="btn-secondary">Sign In</button>
+                    <button id="signOutBtn" class="btn-secondary" style="display:none;">Sign Out</button>
+                </div>
+            </div>
+        </header>
+
+        <div class="main-content">
+            <!-- Sidebar -->
+            <aside class="sidebar">
+                <div class="sidebar-header">
+                    <h2>Subjects</h2>
+                    <button id="addSubjectBtn" class="btn-primary">+ New Subject</button>
+                </div>
+                <div style="padding: 0 1rem 1rem 1rem; display:flex; gap:0.5rem; align-items:center;">
+                    <input id="searchSidebar" type="text" placeholder="Search subjects or files..." style="flex:1; padding:0.5rem; border-radius:6px; border:1px solid #ddd;">
+                    <button id="searchSidebarBtn" title="Search" style="padding:0.5rem 0.6rem; border-radius:6px; border:1px solid #ddd; background:#fff; cursor:pointer;">🔍</button>
+                </div>
+                <div id="folderTree" style="padding: 0 1rem 1rem 1rem; display:none; border-top:1px solid #e0e0e0; margin-top:0.5rem; padding-top:1rem;">
+                    <h3 style="margin:0 0 0.5rem 0; font-size:0.95rem;">📁 Folders</h3>
+                    <div id="folderTreeList" style="display:flex; flex-direction:column; gap:0.25rem;">
+                        <!-- Folders will be rendered here -->
+                    </div>
+                </div>
+                <div id="subjectList" class="subject-list">
+                    <!-- Subjects will be added here dynamically -->
+                </div>
+            </aside>
+
+            <!-- Main Content Area -->
+            <main class="content">
+                <!-- Add Subject Modal -->
+                <div id="addSubjectModal" class="modal">
+                    <div class="modal-content">
+                        <span class="close">&times;</span>
+                        <h2>Add New Subject</h2>
+                        <form id="addSubjectForm">
+                            <input type="text" id="subjectName" placeholder="Subject Name" required>
+                            <input type="text" id="subjectCode" placeholder="Subject Code (e.g., CS101)">
+                            <input type="text" id="professor" placeholder="Professor Name">
+                            <textarea id="subjectDescription" placeholder="Description" rows="4"></textarea>
+                            <button type="submit" class="btn-primary">Add Subject</button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Add Note Modal -->
+                <div id="addNoteModal" class="modal">
+                    <div class="modal-content">
+                        <span class="close">&times;</span>
+                        <h2>Add New Note</h2>
+                        <form id="addNoteForm">
+                            <input type="text" id="noteTitle" placeholder="Note Title" required>
+                            <input type="date" id="noteDate">
+                            <textarea id="noteContent" placeholder="Note Content" rows="6"></textarea>
+                            <input type="text" id="noteTags" placeholder="Tags (comma separated)">
+                            <button type="submit" class="btn-primary">Save Note</button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Upload File Modal -->
+                <div id="uploadFileModal" class="modal">
+                    <div class="modal-content">
+                        <span class="close">&times;</span>
+                        <h2>Upload File to Subject</h2>
+                        <form id="uploadFileForm">
+                            <label for="uploadSubjectSelect" style="display:block; margin-bottom:0.5rem; font-weight:600;">Select Subject</label>
+                            <select id="uploadSubjectSelect" style="width:100%; padding:0.5rem; margin-bottom:1rem;">
+                                <!-- Options will be populated dynamically -->
+                            </select>
+                            <label for="uploadFolderSelect" style="display:block; margin-bottom:0.5rem; font-weight:600;">Select Folder (optional)</label>
+                            <select id="uploadFolderSelect" style="width:100%; padding:0.5rem; margin-bottom:1rem;">
+                                <option value="auto">Auto (by file type)</option>
+                            </select>
+
+                            <div class="file-upload-area" id="fileUploadArea">
+                                <input type="file" id="fileInput" accept=".pdf,.jpg,.jpeg,.png,.gif,.mp4,.webm,.avi,.mov" multiple hidden>
+                                <div class="upload-prompt">
+                                    <p>📁 Drag and drop files here or click to select</p>
+                                    <small>Supported: PDF, Images (JPG, PNG, GIF), Videos (MP4, WebM, AVI, MOV)</small>
+                                </div>
+                            </div>
+                            <div id="filePreview" class="file-preview"></div>
+                            <input type="text" id="fileDescription" placeholder="File description (optional)">
+                            <button type="submit" class="btn-primary">Upload Files</button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Welcome Screen -->
+                <div id="welcomeScreen" class="welcome-screen">
+                    <h2>Welcome to College Notes Organizer</h2>
+                    <p>Create a new subject to get started!</p>
+                    <button id="welcomeAddSubjectBtn" class="btn-primary btn-large">Create First Subject</button>
+                </div>
+
+                <!-- Notes Display Area -->
+                <div id="notesArea" class="notes-area" style="display: none;">
+                    <div class="notes-header">
+                        <h2 id="selectedSubjectName"></h2>
+                        <div class="notes-actions">
+                            <div style="display:flex; gap:0.5rem; align-items:center;">
+                                <input type="text" id="searchNotes" placeholder="Search notes..." class="search-box">
+                                <button id="searchNotesBtn" title="Search notes" style="padding:0.5rem 0.6rem; border-radius:6px; border:1px solid #ddd; background:#fff; cursor:pointer;">🔍</button>
+                            </div>
+                            <button id="addNoteBtn" class="btn-primary">+ Add Note</button>
+                            <button id="uploadFileBtn" class="btn-primary">📁 Upload File</button>
+                            <button id="newFolderBtn" class="btn-primary">📂 New Folder</button>
+                            <button id="downloadSubjectBtn" class="btn-primary" style="background: #28a745;">⬇️ Download</button>
+                        </div>
+                    </div>
+                    
+                    <div class="subject-info" id="subjectInfo"></div>
+                    
+                    <!-- Tab Navigation -->
+                    <div class="tab-navigation">
+                        <button class="tab-btn active" data-tab="notes-tab">📝 Notes</button>
+                        <button class="tab-btn" data-tab="files-tab">📁 Files</button>
+                    </div>
+                    
+                    <!-- Notes Tab -->
+                    <div id="notes-tab" class="tab-content active">
+                        <div id="notesList" class="notes-grid">
+                            <!-- Notes will be added here dynamically -->
+                        </div>
+                    </div>
+                    
+                    <!-- Files Tab -->
+                    <div id="files-tab" class="tab-content">
+                        <div id="filesList" class="files-grid">
+                            <!-- Files will be added here dynamically -->
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Sign In Modal -->
+    <div id="signInModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Sign In</h2>
+            <form id="signInForm">
+                <input type="email" id="signinEmail" placeholder="Email" required>
+                <input type="password" id="signinPassword" placeholder="Password" required>
+                <button type="submit" class="btn-primary">Sign In</button>
+            </form>
+            <div style="margin-top:1rem; display:flex; gap:0.5rem; align-items:center;">
+                <div id="googleSignInBtn" style="cursor:pointer;">🔵 Sign in with Google</div>
+                <div id="msSignInBtn" style="cursor:pointer;">🟣 Sign in with Microsoft</div>
+            </div>
+            <p style="margin-top:1rem;">Don't have an account? <a href="#" id="openSignUpLink">Sign up</a></p>
+        </div>
+    </div>
+
+    <!-- Sign Up Modal -->
+    <div id="signUpModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Sign Up</h2>
+            <form id="signUpForm">
+                <input type="email" id="signupEmail" placeholder="Email" required>
+                <input type="password" id="signupPassword" placeholder="Password" required>
+                <button type="submit" class="btn-primary">Create Account</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Assistant Modal -->
+    <div id="assistantModal" class="modal assistant-modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Study Assistant</h2>
+            <div class="assistant-chat">
+                <div style="display:flex; gap:0.5rem; align-items:center; margin-bottom:0.5rem;">
+                    <label style="font-weight:600; width:120px;">Subject:</label>
+                    <select id="assistantSubjectSelect" style="flex:1; padding:0.5rem;">
+                        <!-- populated dynamically -->
+                    </select>
+                    <button id="assistantAnalyzeBtn" class="btn-primary">Analyze</button>
+                    <button id="assistantAnalyzeLLMBtn" class="btn-primary" title="Analyze with LLM">Analyze (LLM)</button>
+                </div>
+                <div style="display:flex; gap:0.5rem; align-items:center; margin-bottom:0.5rem;">
+                    <label style="font-weight:600; width:120px;">LLM API Key:</label>
+                    <input id="assistantApiKey" placeholder="sk-... (optional, stored locally)" style="flex:1; padding:0.5rem; border-radius:6px; border:1px solid #ddd;">
+                    <button id="assistantSaveKeyBtn" class="btn-secondary">Save Key</button>
+                </div>
+                <div id="assistantMessages" class="assistant-messages">
+                    <div class="assistant-message">Hi — I can help you summarize notes, suggest consolidation, or justify/clear notes using the available files and notes for a subject. Select a subject and click "Analyze".</div>
+                </div>
+                <div id="assistantProgress" style="display:none; margin:0.5rem 0; padding:0.75rem; background:#f0f8ff; border-radius:6px; font-size:0.9rem;">
+                    <div style="display:flex; align-items:center; gap:0.5rem;">
+                        <span style="animation: spin 1s linear infinite;">⚙️</span>
+                        <span id="assistantProgressText">Processing...</span>
+                    </div>
+                    <div id="assistantProgressBar" style="height:4px; background:#ddd; border-radius:2px; margin-top:0.5rem; overflow:hidden;">
+                        <div id="assistantProgressFill" style="height:100%; background:#4a90e2; width:0%; transition:width 0.3s ease;"></div>
+                    </div>
+                </div>
+                <div class="assistant-controls">
+                    <input id="assistantInput" placeholder="Ask the assistant about this subject (e.g., 'summarize notes')" style="flex:1; padding:0.6rem; border-radius:6px; border:1px solid #ddd;">
+                    <button id="assistantSendBtn" class="btn-primary">Send</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Folder Modal -->
+    <div id="createFolderModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Create New Folder</h2>
+            <form id="createFolderForm">
+                <input type="text" id="folderNameInput" placeholder="Folder name" required>
+                <button type="submit" class="btn-primary">Create Folder</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Move File Modal -->
+    <div id="moveFileModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Move File to Folder</h2>
+            <form id="moveFileForm">
+                <label style="display:block; margin-bottom:0.5rem; font-weight:600;">Select destination folder:</label>
+                <select id="moveFileDestinationSelect" style="width:100%; padding:0.5rem; margin-bottom:1rem;">
+                    <!-- Options populated dynamically -->
+                </select>
+                <button type="submit" class="btn-primary">Move File</button>
+            </form>
+        </div>
+    </div>    <!-- Google Identity Services (replace with your client ID configuration in script.js) -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <!-- MSAL.js for Microsoft authentication (requires registration and client ID) -->
+    <script src="https://alcdn.msauth.net/browser/2.28.1/js/msal-browser.min.js"></script>
+    <!-- PDF.js for client-side PDF text extraction -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.9.179/pdf.min.js"></script>
+    <!-- Tesseract.js for client-side OCR on images -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.1.4/dist/tesseract.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
